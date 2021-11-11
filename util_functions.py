@@ -1,7 +1,7 @@
 import streamlit as st
 
 
-@st.cache
+# @st.cache
 def load_model(model_file_path):
     """
 
