@@ -9,3 +9,15 @@ Nowadays, online meetings, online schooling, and work-from-home methodologies ar
 With the help of Convolutional Autoencoders, this model is trained to detect the unwanted noise in the audio samples. An audio sample is passed through series of 1D CONV layers and then are stacked with their respective CONV1D TRANSPOSE layers to achieve initial sample length.
 
 <img src="utils/images/model_plot.png">
+
+## Prototype Insights
+
+<img src="utils/images/2021-10-28 (2).png">
+
+---
+
+<img src="utils/images/2021-10-28 (3).png">
+
+---
+
+<img src="utils/images/2021-10-28 (4).png">
