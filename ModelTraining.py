@@ -143,3 +143,101 @@ def input_pipeline(X, y, batch_size, shuffle_buffer, train_split=0.8):
 
 
 train_ds, val_ds = input_pipeline(noisy_train, clean_train, 64, 50000)
+
+
+# Model training and general architecture
+
+def build_model():
+    """
+    This function will return tf.keras.Model and is used to create multiple instances of the same model
+
+    :return model: return tf.keras.Model with the architecture declared
+    """
+
+    inputs = layers.Input((16000, 1))
+
+    conv1 = layers.Conv1D(2, 32, 2, padding='same', activation='relu')(inputs)
+    conv2 = layers.Conv1D(4, 32, 2, padding='same', activation='relu')(conv1)
+    conv3 = layers.Conv1D(8, 32, 2, padding='same', activation='relu')(conv2)
+    conv4 = layers.Conv1D(16, 32, 2, padding='same', activation='relu')(conv3)
+    conv5 = layers.Conv1D(32, 32, 2, padding='same', activation='relu')(conv4)
+
+    deconv1 = layers.Conv1DTranspose(32, 32, 1, padding='same')(conv5)
+    concat = layers.Concatenate()([conv5, deconv1])
+    deconv2 = layers.Conv1DTranspose(16, 32, 2, padding='same')(concat)
+    concat = layers.Concatenate()([conv4, deconv2])
+    deconv3 = layers.Conv1DTranspose(8, 32, 2, padding='same')(concat)
+    concat = layers.Concatenate()([conv3, deconv3])
+    deconv4 = layers.Conv1DTranspose(4, 32, 2, padding='same')(concat)
+    concat = layers.Concatenate()([conv2, deconv4])
+    deconv5 = layers.Conv1DTranspose(2, 32, 2, padding='same')(concat)
+    concat = layers.Concatenate()([conv1, deconv5])
+    deconv6 = layers.Conv1DTranspose(1, 32, 2, padding='same')(concat)
+    concat = layers.Concatenate()([inputs, deconv6])
+    deconv6 = layers.Conv1DTranspose(1, 32, 1, padding='same', activation='linear')(concat)
+
+    model = tf.keras.Model(inputs=[inputs], outputs=[deconv6], name='auto_encoders_for_noise_removal')
+
+    return model
+
+
+model = build_model()
+print(model.summary())  # Summary for analysing
+
+# Compiling the model
+
+model.compile(optimizer=tf.keras.optimizers.Adam(),
+              loss=tf.keras.losses.Huber(),
+              metrics='mae')  # We will keep the track of mae(mean absolute error) as a metric for this problem
+
+# Here callback learning rate scheduler is used to find best learning rate which can give minimum loss
+
+lr_scheduler = tf.keras.callbacks.LearningRateScheduler(lambda epoch: 1e-6 * 10 ** (epoch / 20))
+
+history = model.fit(train_ds, callbacks=[lr_scheduler], epochs=100)
+
+# Visualizing lr vs loss graph to choose idea lr
+
+style.use('ggplot')
+plt.figure(figsize=(10, 6))
+plt.semilogx(1e-7, 1, 0, 1)
+plt.plot(history.history['lr'], history.history['loss'])
+plt.title('learning_rate vs loss')
+plt.xlabel('learning_rate')
+plt.ylabel('loss')
+plt.show()
+
+
+model = build_model()
+
+# Compiling the model
+
+model.compile(optimizer=tf.keras.optimizers.Adam(0.0023),
+              loss=tf.keras.losses.Huber(),
+              metrics='mae')
+
+history = model.fit(train_ds, epochs=20)  # Training the model
+
+
+# Visualizing mae, loss with epochs
+
+epochs = np.arange(len(history.history['loss']))
+
+fig, axes = plt.subplots(1, 2, figsize=(15, 6))
+axes[0].plot(epochs, history.history['mae'], color='b')
+axes[0].set_title('epochs vs mae')
+axes[0].set_xlabel('epochs')
+axes[0].set_ylabel('mae')
+
+
+axes[1].plot(epochs, history.history['loss'], color='r')
+axes[1].set_title('epochs vs loss')
+axes[1].set_xlabel('epochs')
+axes[1].set_ylabel('loss')
+
+plt.show()
+
+model.evaluate(val_ds)
+
+model.save('auto_encoders_for_noise_removal.h5')  # Saving the model for deployment
+
